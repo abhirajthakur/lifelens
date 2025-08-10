@@ -1,0 +1,21 @@
+services:
+  db:
+    container_name: lifelens_db
+    image: pgvector/pgvector:pg17
+    ports:
+      - 5432:5432
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_DB=lifelens_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d lifelens_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+volumes:
+  db_data:
