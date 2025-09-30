@@ -2,7 +2,8 @@ from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
-from app.models import FileType, Media, MediaMetadata, User
+from app.models.media import FileType, Media, MediaMetadata
+from app.models.user import User
 
 
 async def save_media(db: Session, user: User, file):
@@ -25,6 +26,7 @@ async def save_media(db: Session, user: User, file):
 
     media = Media(
         id=media_id,
+        user_id=user.id,
         file_name=file_name,
         file_type=file_type,
         mime_type=mime_type,
@@ -33,11 +35,11 @@ async def save_media(db: Session, user: User, file):
         duration=None,
         width=None,
         height=None,
-        user_id=user.id,
     )
 
     metadata = MediaMetadata(
         id=uuid4(),
+        media_id=media_id,
         caption="",
         ocr_text=None,
         transcript=None,
@@ -45,8 +47,6 @@ async def save_media(db: Session, user: User, file):
         topics=None,
         audio_tags=None,
         embeddings=None,
-        media_id=media_id,
-        media=media,
     )
 
     db.add(media)

@@ -10,7 +10,7 @@ from app.services.user_service import create_user
 router = APIRouter(prefix="/auth")
 
 
-@router.post("/signup", response_model=Token)
+@router.post("/signup")
 def signup(user_in: UserCreate, db: Session = Depends(get_db)):
     try:
         create_user(db, user_in)

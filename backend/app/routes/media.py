@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.db import get_db
 from app.core.deps import get_current_user
-from app.models import User
+from app.models.user import User
 from app.services import media_service
 
 router = APIRouter(prefix="/api/upload")

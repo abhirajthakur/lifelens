@@ -8,7 +8,7 @@ from app.core.security import (
     create_access_token,
     verify_password,
 )
-from app.models import User
+from app.models.user import User
 from app.services import user_service
 
 

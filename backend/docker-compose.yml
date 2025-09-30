@@ -3,7 +3,7 @@ services:
     container_name: lifelens_db
     image: pgvector/pgvector:pg17
     ports:
-      - 5432:5432
+      - "5432:5432"
     volumes:
       - lifelens_db:/var/lib/postgresql/data
     environment:

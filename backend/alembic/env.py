@@ -5,9 +5,9 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.models import Base
-from app.core.db import DATABASE_URL
-from app import models
+# from app.models import Base
+from app.core.db import Base
+from app.models import media, user
 
 # Import all models so that Alembic sees them
 # (important for autogenerate to detect tables)
@@ -28,7 +28,7 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = Base.metadata
-target_metadata = models.Base.metadata
+target_metadata = Base.metadata
 # target_metadata = None
 
 # other values from the config, defined by the needs of env.py,
