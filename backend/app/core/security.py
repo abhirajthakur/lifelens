@@ -4,6 +4,10 @@ from datetime import datetime, timedelta, timezone
 from jose import jwt
 from passlib.context import CryptContext
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 SECRET_KEY = os.getenv("SECRET_KEY") or "supersecretjwtkey"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30

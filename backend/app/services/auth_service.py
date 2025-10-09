@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 from fastapi import HTTPException, status
@@ -15,7 +16,9 @@ from app.services import user_service
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = user_service.get_user_by_email(db, email)
     if not user or not verify_password(password, user.password_hash):
+        logging.warning(f"Failed login attempt for user with email: {email}")
         return None
+    logging.info(f"User with email: {email} logged in successfully")
     return user
 
 

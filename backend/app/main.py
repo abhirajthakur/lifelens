@@ -1,8 +1,12 @@
 from fastapi import FastAPI
+from dotenv import load_dotenv
+from app.api import register_routes
+from app.logging import configure_logging
 
-from app.routes import auth, media
+configure_logging()
+load_dotenv()
 
 app = FastAPI()
 
-app.include_router(media.router)
-app.include_router(auth.router)
+
+register_routes(app)

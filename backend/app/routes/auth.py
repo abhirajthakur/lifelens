@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, HTTPException, status
 
-from app.core.db import get_db
+from app.core.db import DBSession
 from app.schemas.auth import LoginRequest, Token
 from app.schemas.user import UserCreate
 from app.services.auth_service import login_user
@@ -11,7 +10,7 @@ router = APIRouter(prefix="/auth")
 
 
 @router.post("/signup")
-def signup(user_in: UserCreate, db: Session = Depends(get_db)):
+async def signup(user_in: UserCreate, db: DBSession):
     try:
         create_user(db, user_in)
         return {"message": "User created successfully"}
@@ -31,10 +30,10 @@ def signup(user_in: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-def login(request: LoginRequest, db: Session = Depends(get_db)):
+async def login(request: LoginRequest, db: DBSession):
     try:
         token = login_user(db, request.email, request.password)
-        return {"access_token": token, "token_type": "bearer"}
+        return {"access_token": token}
     except Exception as e:
         error_message = str(e).lower()
 
