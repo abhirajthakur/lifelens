@@ -6,7 +6,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import Session, sessionmaker
 
-DATABASE_URL = "postgresql://postgres:mysecretpassword@localhost:5432/lifelens_db"
+from app.core import config
+
+DATABASE_URL = config.DATABASE_URL
 
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
