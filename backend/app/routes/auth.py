@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 
 from app.core.db import DBSession
+from app.core.rate_limiting import limiter
 from app.schemas.auth import LoginRequest, Token
 from app.schemas.user import UserCreate
 from app.services.auth_service import login_user
@@ -10,7 +11,8 @@ router = APIRouter(prefix="/auth")
 
 
 @router.post("/signup")
-async def signup(user_in: UserCreate, db: DBSession):
+@limiter.limit("5/minute")
+async def signup(request: Request, user_in: UserCreate, db: DBSession):
     try:
         create_user(db, user_in)
         return {"message": "User created successfully"}
