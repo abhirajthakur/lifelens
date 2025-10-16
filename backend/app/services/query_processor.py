@@ -90,8 +90,10 @@ FUNCTION_DEFINITIONS = [
     types.FunctionDeclaration(
         name="count_media",
         description=(
-            "Count the number of media items, optionally filtered by type (image, video, document, audio). "
-            "Use when user asks 'how many' files or media items they have."
+            "Retrieve the total number of media items uploaded by a user. Can optionally filter by media type"
+            "(image, video, document, audio) and/or by specific timeframes such as 'yesterday', 'last week', or a custom date range."
+            "Use this when the user asks how many files or media items they have, including any specific type or date-based queries"
+            "like 'How many images did I upload yesterday?' or 'Count my videos from last week.'"
         ),
         parameters=types.Schema(
             type=types.Type.OBJECT,
