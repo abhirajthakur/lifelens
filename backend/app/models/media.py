@@ -1,5 +1,5 @@
-from datetime import datetime, timezone
 import enum
+from datetime import datetime, timezone
 from typing import Optional
 from uuid import UUID, uuid4
 
@@ -13,7 +13,6 @@ from app.core.db import Base
 class FileType(enum.Enum):
     IMAGE = "image"
     AUDIO = "audio"
-    VIDEO = "video"
     TEXT = "text"
 
 
@@ -27,11 +26,6 @@ class Media(Base):
     mime_type: Mapped[str]
     storage_url: Mapped[str]
     size: Mapped[int]
-
-    # Optional fields depending on the document type
-    duration: Mapped[Optional[int]]  # in seconds for audio and video
-    width: Mapped[Optional[int]]  # in pixels for image and video
-    height: Mapped[Optional[int]]  # in pixels for image and video
 
 
 class MediaMetadata(Base):
@@ -47,5 +41,4 @@ class MediaMetadata(Base):
     transcript: Mapped[Optional[str]]
     summary: Mapped[Optional[str]]
     topics: Mapped[Optional[ARRAY[Text]]] = mapped_column(ARRAY(Text))
-    audio_tags: Mapped[Optional[ARRAY[Text]]] = mapped_column(ARRAY(Text))
     embeddings: Mapped[Vector] = mapped_column(Vector(1536))
