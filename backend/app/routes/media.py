@@ -28,7 +28,7 @@ def determine_file_type(mime_type: str, file_name: str) -> FileType:
         return FileType.TEXT
 
 
-@router.post("")
+@router.post("/upload")
 async def upload_files(
     db: DBSession,
     current_user: CurrentUser,
@@ -118,3 +118,28 @@ def get_media(db: DBSession, current_user: CurrentUser):
     ]
 
     return {"media": media_response}
+
+
+@router.get("/status/{task_id}")
+async def get_task_status(
+    task_id: str,
+    current_user: CurrentUser,
+):
+    try:
+        from app.tasks import celery_app
+
+        result = celery_app.AsyncResult(task_id)
+
+        return {
+            "task_id": task_id,
+            "status": result.state,
+            "result": result.result if result.ready() else None,
+            "info": result.info,
+            "ready": result.ready(),
+            "successful": result.successful() if result.ready() else None,
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error checking task status: {str(e)}"
+        )

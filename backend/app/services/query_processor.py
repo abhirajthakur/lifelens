@@ -6,8 +6,9 @@ from uuid import UUID
 from google.genai import types
 from sqlalchemy.orm import Session
 
-from app.models.media import Media, MediaMetadata
+from app.models.media import FileType, Media, MediaMetadata
 from app.services.ml_services import MODEL_NAME, client
+from app.services.semantic_search import hybrid_search
 from app.services.temporal_filtering import filter_media_by_date_time
 
 FUNCTION_DEFINITIONS = [
@@ -56,7 +57,11 @@ FUNCTION_DEFINITIONS = [
     ),
     types.FunctionDeclaration(
         name="analyze_text",
-        description="Analyze text content in media to find specific information like names, numbers, addresses.",
+        description=(
+            "Extract structured information (e.g. names, dates, addresses, phone numbers) "
+            "from the textual content of media files.\n"
+            "Uses OCR text for images, transcript for audio, and summary for document files."
+        ),
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
@@ -72,8 +77,12 @@ FUNCTION_DEFINITIONS = [
     types.FunctionDeclaration(
         name="get_media_details",
         description=(
-            "Get full details of specific media items including complete OCR text, captions, "
-            "and metadata. Use this when you need to read or analyze the full content of media files."
+            "Get full content and metadata of specific media files. "
+            "Returns relevant text fields based on file type:\n"
+            "- For images: returns OCR text\n"
+            "- For documents (PDF, Word, text): returns summary\n"
+            "- For audio files: returns transcript\n"
+            "Use this to analyze or summarize media content in detail."
         ),
         parameters=types.Schema(
             type=types.Type.OBJECT,
@@ -101,7 +110,7 @@ FUNCTION_DEFINITIONS = [
                 "media_type": types.Schema(
                     type=types.Type.STRING,
                     description="Optional: Filter by media type",
-                    enum=["image", "video", "document", "audio", "all"],
+                    enum=["image", "pdf", "word", "document", "audio", "all"],
                 ),
             },
         ),
@@ -131,51 +140,7 @@ def generate_query_embeddings(query: str) -> Optional[List[float]]:
 def search_by_embeddings(
     db: Session, query: str, user_id: UUID, limit: int = 10
 ) -> List[Dict[str, Any]]:
-    try:
-        query_embeddings = generate_query_embeddings(query)
-        if not query_embeddings:
-            return []
-
-        results = (
-            db.query(
-                Media.id.label("media_id"),
-                Media.file_name,
-                Media.file_type,
-                MediaMetadata.created_at,
-                MediaMetadata.caption,
-                MediaMetadata.ocr_text,
-                (1 - MediaMetadata.embeddings.cosine_distance(query_embeddings)).label(
-                    "similarity_score"
-                ),
-            )
-            .join(Media, MediaMetadata.media_id == Media.id)
-            .filter(MediaMetadata.embeddings.isnot(None), Media.user_id == user_id)
-            .order_by(MediaMetadata.embeddings.cosine_distance(query_embeddings))
-            .limit(limit)
-            .all()
-        )
-
-        formatted_results = []
-        for row in results:
-            formatted_results.append(
-                {
-                    "media_id": str(row.media_id),
-                    "file_name": row.file_name,
-                    "file_type": row.file_type,
-                    "created_at": row.created_at.isoformat(),
-                    "caption": row.caption,
-                    "ocr_text": row.ocr_text[:200] + "..."
-                    if row.ocr_text and len(row.ocr_text) > 200
-                    else row.ocr_text,
-                    "similarity_score": float(row.similarity_score),
-                }
-            )
-
-        return formatted_results
-
-    except Exception as e:
-        logging.error(f"Error in embedding search: {e}")
-        return []
+    return hybrid_search(db=db, query=query, user_id=str(user_id), limit=limit)
 
 
 def analyze_text_content(
@@ -273,18 +238,35 @@ def get_media_details(
                 .first()
             )
 
-            if metadata:
-                results.append(
-                    {
-                        "media_id": str(media.id),
-                        "file_name": media.file_name,
-                        "file_type": media.file_type.value,
-                        "created_at": metadata.created_at.isoformat(),
-                        "caption": metadata.caption,
-                        "ocr_text": metadata.ocr_text,
-                        "duration": media.duration,
-                    }
+            if not metadata:
+                continue
+
+            content_field = None
+            if media.file_type == FileType.IMAGE:
+                content_field = metadata.ocr_text
+                content_type = "ocr_text"
+            elif media.file_type == FileType.AUDIO:
+                content_field = metadata.transcript
+                content_type = "transcript"
+            elif media.file_type == FileType.TEXT:
+                content_field = metadata.summary
+                content_type = "summary"
+            else:
+                content_field = (
+                    metadata.summary or metadata.ocr_text or metadata.transcript
                 )
+                content_type = "content"
+
+            results.append(
+                {
+                    "media_id": str(media.id),
+                    "file_name": media.file_name,
+                    "file_type": media.file_type.value,
+                    "created_at": metadata.created_at.isoformat(),
+                    "caption": metadata.caption,
+                    content_type: content_field,
+                }
+            )
 
         return results
 
@@ -297,8 +279,68 @@ def count_media(db: Session, user_id: UUID, media_type: str = "all") -> Dict[str
     try:
         query = db.query(Media).filter(Media.user_id == user_id)
 
-        if media_type and media_type != "all":
-            query = query.filter(Media.file_type == media_type)
+        if media_type != "all":
+            if media_type == "image":
+                query = query.filter(Media.mime_type.like("image/%"))
+            elif media_type == "audio":
+                query = query.filter(Media.mime_type.like("audio/%"))
+            elif media_type == "video":
+                query = query.filter(Media.mime_type.like("video/%"))
+            elif media_type == "document":
+                query = query.filter(
+                    Media.mime_type.in_(
+                        [
+                            "application/pdf",
+                            "application/msword",
+                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
+                            "application/vnd.ms-powerpoint",
+                            "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
+                            "application/vnd.ms-excel",
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",  # .xlsx
+                            "text/plain",
+                            "text/markdown",
+                        ]
+                    )
+                )
+            elif media_type in [
+                "pdf",
+                "word",
+                "powerpoint",
+                "excel",
+                "txt",
+                "md",
+                "markdown",
+            ]:
+                mime_map = {
+                    "pdf": "application/pdf",
+                    "word": [
+                        "application/msword",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    ],
+                    "powerpoint": [
+                        "application/vnd.ms-powerpoint",
+                        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+                    ],
+                    "excel": [
+                        "application/vnd.ms-excel",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ],
+                    "txt": "text/plain",
+                    "md": "text/markdown",
+                    "markdown": "text/markdown",
+                }
+                mime_filter = mime_map.get(media_type)
+                if isinstance(mime_filter, list):
+                    query = query.filter(Media.mime_type.in_(mime_filter))
+                else:
+                    query = query.filter(Media.mime_type == mime_filter)
+            else:
+                # Unknown or unsupported media_type
+                return {
+                    "count": 0,
+                    "media_type": media_type,
+                    "error": f"Unsupported media_type: {media_type}",
+                }
 
         count = query.count()
 
@@ -414,6 +456,16 @@ Example: "What was written on the page uploaded last hour?"
 - Step 2: Call `get_media_details` with the media_id from step 1
 - Step 3: Read the full ocr_text and provide the answer
 
+### 🔁 Tool Chaining Instructions (Critical)
+
+- When the user's query involves both a **count** and **content**, you **must** call multiple tools.
+- For example, if the user asks for a count of PDFs and their content:
+  1. First call `count_media` with `media_type='pdf'`.
+  2. Then call `get_media_details` or `analyze_text` to retrieve or summarize their content.
+  3. Combine both results and return a final summary.
+
+- You can chain multiple functions in one response cycle to fully answer user intent.
+
 ### 🗣️ Response Style
 - Be **precise**, **helpful**, and **grounded in the data** retrieved.
 - If a question cannot be answered from available media, clearly say so.
@@ -443,7 +495,7 @@ Now begin assisting the user. Interpret their intent intelligently and call func
         ]
 
         # Allow multiple rounds of function calling
-        max_iterations = 5
+        max_iterations = 10
         iteration = 0
 
         while iteration < max_iterations:
