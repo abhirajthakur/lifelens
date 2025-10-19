@@ -160,44 +160,8 @@ def search_by_postgresql_similarity(
             logging.error("Failed to generate embeddings for search query")
             return []
 
-        # # query_vector = str(query_embeddings).replace(" ", "")
-        # # query_vector = "[" + ",".join([str(x) for x in query_embeddings]) + "]"
-        # query_vector_str = "[" + ",".join(map(str, query_embeddings)) + "]"
-        #
-        # sql_query = """
-        #     SELECT
-        #         m.id as media_id,
-        #         m.file_name,
-        #         m.file_type,
-        #         mm.created_at,
-        #         mm.caption,
-        #         mm.ocr_text,
-        #         1 - (mm.embeddings <=> %(query_vector)s::vector) as similarity_score
-        #     FROM media_metadata mm
-        #     JOIN media m ON mm.media_id = m.id
-        #     WHERE mm.embeddings IS NOT NULL
-        # """
-        #
-        # params: Dict[str, Union[str, float, int]] = {
-        #     "query_vector": query_vector_str,
-        #     "similarity_threshold": similarity_threshold,
-        #     "limit": limit,
-        # }
-        #
-        # if user_id:
-        #     sql_query += " AND m.user_id = %(user_id)s"
-        #     params["user_id"] = user_id
-        #
-        # # Add similarity threshold and ordering
-        # sql_query += """
-        # AND 1 - (mm.embeddings <=> %(query_vector)s::vector) >= %(similarity_threshold)s
-        # ORDER BY mm.embeddings <=> %(query_vector)s::vector
-        # LIMIT %(limit)s
-        # """
-
         vector_str = "[" + ",".join(map(str, query_embeddings)) + "]"
 
-        # Inline the vector into the query string safely (no cast needed in SQL)
         sql_query = """
         SELECT 
             m.id AS media_id,

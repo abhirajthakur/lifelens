@@ -7,7 +7,7 @@ from google.genai import types
 from sqlalchemy.orm import Session
 
 from app.models.media import FileType, Media, MediaMetadata
-from app.services.ml_services import MODEL_NAME, client
+from app.services.ml_services import client
 from app.services.semantic_search import hybrid_search
 from app.services.temporal_filtering import filter_media_by_date_time
 
@@ -81,15 +81,22 @@ FUNCTION_DEFINITIONS = [
             "Returns relevant text fields based on file type:\n"
             "- For images: returns OCR text\n"
             "- For documents (PDF, Word, text): returns summary\n"
-            "- For audio files: returns transcript\n"
-            "Use this to analyze or summarize media content in detail."
+            "- For audio files: returns transcript\n\n"
+            "CRITICAL: You MUST use the exact media_id (UUID format like '9a3960ad-8ec5-4061-a359-6d26d990945a') "
+            "returned from previous function calls (filter_by_date or semantic_search). "
+            "DO NOT use file names, numbers, or any other identifiers. "
+            "ONLY use the media_id field from previous results."
         ),
         parameters=types.Schema(
             type=types.Type.OBJECT,
             properties={
                 "media_ids": types.Schema(
                     type=types.Type.ARRAY,
-                    description="List of media IDs to retrieve full details for",
+                    description=(
+                        "List of media_id values (UUIDs) from previous search results. "
+                        "Example: ['9a3960ad-8ec5-4061-a359-6d26d990945a', 'b2c4d5e6-7890-1234-5678-90abcdef1234']. "
+                        "NEVER use file names or numeric IDs."
+                    ),
                     items=types.Schema(type=types.Type.STRING),
                 )
             },
@@ -418,134 +425,3 @@ def execute_function(db: Session, function_call, user_id: UUID) -> types.Part | 
     except Exception as e:
         logging.error(f"Error executing function {function_name}: {e}")
         return None
-
-
-def process_query(db: Session, query: str, user_id: UUID) -> Dict[str, Any]:
-    try:
-        logging.info(f"Processing query: '{query}' for user: {user_id}")
-
-        system_prompt = """
-You are **LifeLens**, an intelligent AI media assistant that helps users query, explore, and reason over their personal media collection.
-
-### 🔍 Your Purpose
-You help users find information or insights from their uploaded media — which may include:
-- Documents (PDFs, notes, reports)
-- Images (screenshots, infographics)
-- Audio and Video (meetings, lectures, voice notes)
-
-You use structured tools (functions) to **retrieve**, **analyze**, **summarize**, and **converse** about this content intelligently.
-
-### 🧰 Your Abilities
-You can:
-1. Retrieve semantically relevant media using vector search.
-2. Filter media by date and time periods.
-3. Get full details of specific media items including complete OCR text.
-4. Count media items by type.
-5. Extract or compare information across multiple files.
-6. Continue conversationally using prior context and user intent.
-7. Chain multiple tool calls if needed (e.g., filter by date first, then get full details).
-
-### 🔗 Multi-Step Reasoning
-When a user asks about content in recent media:
-1. First use `filter_by_date` to find relevant media items
-2. Then use `get_media_details` with the returned media_ids to get full OCR text
-3. Finally, answer the user's question based on the complete content
-
-Example: "What was written on the page uploaded last hour?"
-- Step 1: Call `filter_by_date` with "1 hour ago"
-- Step 2: Call `get_media_details` with the media_id from step 1
-- Step 3: Read the full ocr_text and provide the answer
-
-### 🔁 Tool Chaining Instructions (Critical)
-
-- When the user's query involves both a **count** and **content**, you **must** call multiple tools.
-- For example, if the user asks for a count of PDFs and their content:
-  1. First call `count_media` with `media_type='pdf'`.
-  2. Then call `get_media_details` or `analyze_text` to retrieve or summarize their content.
-  3. Combine both results and return a final summary.
-
-- You can chain multiple functions in one response cycle to fully answer user intent.
-
-### 🗣️ Response Style
-- Be **precise**, **helpful**, and **grounded in the data** retrieved.
-- If a question cannot be answered from available media, clearly say so.
-- When you cite files, include their names (e.g., *"Based on 'invoice_2024.pdf'…"*).
-- Do not hallucinate or assume information not present in the data.
-- When showing OCR text, present it clearly and format it if needed.
-
-### ⚙️ Tool Use Policy
-- Always prefer using retrieval functions before answering factual queries.
-- When the initial search returns truncated text (ocr_text_preview), use `get_media_details` to get the full content.
-- You can combine multiple tool calls to form multi-step reasoning chains.
-- Only return final text answers to the user — not raw data or embeddings.
-
-Now begin assisting the user. Interpret their intent intelligently and call functions as needed.
-"""
-
-        tools = types.Tool(function_declarations=FUNCTION_DEFINITIONS)
-        config = types.GenerateContentConfig(
-            tools=[tools], system_instruction=system_prompt
-        )
-
-        contents: types.ContentListUnionDict = [
-            types.Content(
-                role="user",
-                parts=[types.Part(text=query)],
-            )
-        ]
-
-        # Allow multiple rounds of function calling
-        max_iterations = 10
-        iteration = 0
-
-        while iteration < max_iterations:
-            response = client.models.generate_content(
-                model=MODEL_NAME, contents=contents, config=config
-            )
-
-            if not (
-                response.candidates
-                and response.candidates[0].content
-                and response.candidates[0].content.parts
-            ):
-                break
-
-            has_function_call = False
-
-            for part in response.candidates[0].content.parts:
-                if part.function_call:
-                    has_function_call = True
-                    function_response_part = execute_function(
-                        db, part.function_call, user_id
-                    )
-
-                    contents.append(response.candidates[0].content)
-
-                    if function_response_part:
-                        contents.append(
-                            types.Content(role="user", parts=[function_response_part])
-                        )
-
-            # No more function calls, we have the final response
-            if not has_function_call:
-                break
-
-            iteration += 1
-
-        logging.info(f"Completed after {iteration + 1} iterations")
-
-        final_response = client.models.generate_content(
-            model=MODEL_NAME,
-            config=config,
-            contents=contents,
-        )
-
-        return {
-            "response": final_response.text,
-        }
-
-    except Exception as e:
-        logging.error(f"Error processing query '{query}': {e}")
-        return {
-            "error": str(e),
-        }

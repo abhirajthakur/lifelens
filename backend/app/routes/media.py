@@ -100,7 +100,7 @@ async def upload_files(
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
-@router.get("")
+@router.get("/list")
 def get_media(db: DBSession, current_user: CurrentUser):
     media_records = db.query(Media).join(User).filter(User.id == current_user.id).all()
     if not media_records:

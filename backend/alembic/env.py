@@ -7,7 +7,7 @@ from alembic import context
 
 # from app.models import Base
 from app.core.db import Base
-from app.models import media, user
+from app.models import media, user, chat
 
 # Import all models so that Alembic sees them
 # (important for autogenerate to detect tables)
