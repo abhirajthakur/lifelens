@@ -5,7 +5,6 @@ export interface MediaFile {
   file_name: string;
   file_type: string;
   file_size: number;
-  storage_url: string;
   status: "processing" | "ready" | "failed";
   created_at: string;
   task_id?: string;

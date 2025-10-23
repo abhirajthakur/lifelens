@@ -24,7 +24,6 @@ class Media(Base):
     file_name: Mapped[str]
     file_type: Mapped[FileType] = mapped_column(Enum(FileType))
     mime_type: Mapped[str]
-    storage_url: Mapped[str]
     size: Mapped[int]
 
 

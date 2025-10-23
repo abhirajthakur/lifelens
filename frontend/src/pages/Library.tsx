@@ -88,16 +88,6 @@ export default function Library() {
                     </p>
                   </div>
                 </div>
-                {file.storage_url && file.file_type.startsWith("image/") && (
-                  <div className="mt-3 rounded-md overflow-hidden bg-muted">
-                    <img
-                      src={file.storage_url}
-                      alt={file.file_name}
-                      className="w-full h-40 object-cover"
-                      loading="lazy"
-                    />
-                  </div>
-                )}
               </CardContent>
             </Card>
           );

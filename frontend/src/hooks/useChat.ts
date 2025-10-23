@@ -1,8 +1,5 @@
 import { api } from "@/lib/api";
-import type {
-  Conversation,
-  Message,
-} from "@/lib/api-types";
+import type { Conversation, Message } from "@/lib/api-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -76,7 +73,8 @@ export function useSendMessage() {
         message_id?: number;
         message?: string;
       }) => void;
-    }>({
+    }
+  >({
     mutationFn: ({ conversationId, message, onEvent }) =>
       api.sendMessage(conversationId, message, onEvent),
     onSuccess: (_, variables) => {

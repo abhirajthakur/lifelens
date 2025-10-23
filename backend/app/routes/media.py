@@ -47,15 +47,11 @@ async def upload_files(
 
             file_type = determine_file_type(mime_type, file_name)
 
-            # TODO: Update this with actual storage URL
-            storage_url = f"https://fake-storage.local/{file_name}"
-
             media = Media(
                 user_id=current_user.id,
                 file_name=file_name,
                 file_type=file_type,
                 mime_type=mime_type,
-                storage_url=storage_url,
                 size=file_size,
             )
 
@@ -76,7 +72,6 @@ async def upload_files(
                     "file_name": file_name,
                     "file_type": file_type.value,
                     "file_size": file_size,
-                    "storage_url": storage_url,
                     "task_id": task.id,
                 }
             )
@@ -106,7 +101,6 @@ def get_media(db: DBSession, current_user: CurrentUser):
             "file_name": media.file_name,
             "file_type": media.mime_type,
             "file_size": media.size,
-            "storage_url": media.storage_url,
         }
         for media in media_records
     ]

@@ -13,7 +13,6 @@ export interface MediaFile {
   file_name: string;
   file_type: string;
   file_size: number;
-  storage_url: string;
 }
 
 export interface UploadResponse {
@@ -50,5 +49,3 @@ export interface Message {
     args: unknown;
   }>;
 }
-
-
