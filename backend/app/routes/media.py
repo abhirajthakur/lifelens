@@ -1,6 +1,5 @@
 import base64
 from typing import Annotated, cast
-from uuid import uuid4
 
 from celery import Task
 from fastapi import APIRouter, File, HTTPException, UploadFile
@@ -38,12 +37,10 @@ async def upload_files(
 ):
     try:
         uploaded_media = []
-        task_ids = []
 
         for file in files:
             contents = await file.read()
 
-            media_id = uuid4()
             file_name = file.filename or ""
             mime_type = file.content_type or ""
             file_size = len(contents)
@@ -51,10 +48,9 @@ async def upload_files(
             file_type = determine_file_type(mime_type, file_name)
 
             # TODO: Update this with actual storage URL
-            storage_url = f"https://fake-storage.local/{media_id}/{file_name}"
+            storage_url = f"https://fake-storage.local/{file_name}"
 
             media = Media(
-                id=media_id,
                 user_id=current_user.id,
                 file_name=file_name,
                 file_type=file_type,
@@ -69,29 +65,27 @@ async def upload_files(
             contents_base64 = base64.b64encode(contents).decode("utf-8")
 
             task = process_media.delay(
-                media_id_str=str(media_id),
+                media_id_str=str(media.id),
                 file_type=file_type.value,
                 file_contents_base64=contents_base64,
             )
 
             uploaded_media.append(
                 {
-                    "media_id": str(media_id),
+                    "id": str(media.id),
                     "file_name": file_name,
                     "file_type": file_type.value,
                     "file_size": file_size,
+                    "storage_url": storage_url,
                     "task_id": task.id,
                 }
             )
-
-            task_ids.append(task.id)
 
         db.commit()
 
         return {
             "message": f"Successfully uploaded {len(files)} file(s)",
             "media": uploaded_media,
-            "task_ids": task_ids,
             "status": "processing",
         }
 
@@ -109,9 +103,9 @@ def get_media(db: DBSession, current_user: CurrentUser):
     media_response = [
         {
             "id": media.id,
-            "name": media.file_name,
+            "file_name": media.file_name,
             "file_type": media.mime_type,
-            "size": media.size,
+            "file_size": media.size,
             "storage_url": media.storage_url,
         }
         for media in media_records
@@ -130,11 +124,19 @@ async def get_task_status(
 
         result = celery_app.AsyncResult(task_id)
 
+        status_mapping = {
+            "PENDING": "pending",
+            "STARTED": "processing",
+            "RETRY": "processing",
+            "SUCCESS": "completed",
+            "FAILURE": "failed",
+            "REVOKED": "failed",
+        }
+
+        mapped_status = status_mapping.get(result.state, "processing")
+
         return {
-            "task_id": task_id,
-            "status": result.state,
-            "result": result.result if result.ready() else None,
-            "info": result.info,
+            "status": mapped_status,
             "ready": result.ready(),
             "successful": result.successful() if result.ready() else None,
         }

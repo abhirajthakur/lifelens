@@ -106,9 +106,11 @@ FUNCTION_DEFINITIONS = [
     types.FunctionDeclaration(
         name="count_media",
         description=(
-            "Retrieve the total number of media items uploaded by a user. Can optionally filter by media type"
-            "(image, video, document, audio) and/or by specific timeframes such as 'yesterday', 'last week', or a custom date range."
-            "Use this when the user asks how many files or media items they have, including any specific type or date-based queries"
+            "Retrieve the total number of media items uploaded by a user. Can optionally filter by media type. "
+            "Media types: 'image' (photos), 'pdf' (PDF files), 'word' (Word documents), "
+            "'document' (other documents like PowerPoint, Excel, text files - excludes PDFs and Word), "
+            "'audio' (audio files), 'all' (everything). "
+            "Use this when the user asks how many files or media items they have, including any specific type or date-based queries "
             "like 'How many images did I upload yesterday?' or 'Count my videos from last week.'"
         ),
         parameters=types.Schema(
@@ -116,7 +118,7 @@ FUNCTION_DEFINITIONS = [
             properties={
                 "media_type": types.Schema(
                     type=types.Type.STRING,
-                    description="Optional: Filter by media type",
+                    description="Filter by media type. Use 'pdf' for PDFs, 'word' for Word docs, 'document' for other docs (excludes PDF/Word)",
                     enum=["image", "pdf", "word", "document", "audio", "all"],
                 ),
             },
@@ -297,9 +299,6 @@ def count_media(db: Session, user_id: UUID, media_type: str = "all") -> Dict[str
                 query = query.filter(
                     Media.mime_type.in_(
                         [
-                            "application/pdf",
-                            "application/msword",
-                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",  # .docx
                             "application/vnd.ms-powerpoint",
                             "application/vnd.openxmlformats-officedocument.presentationml.presentation",  # .pptx
                             "application/vnd.ms-excel",
