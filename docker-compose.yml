@@ -50,7 +50,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    command: celery -A app.tasks worker --loglevel=info
+    command: /app/.venv/bin/celery -A app.tasks worker --loglevel=info
     environment:
       - DATABASE_URL=postgresql://postgres:mysecretpassword@db:5432/lifelens_db
       - REDIS_URL=redis://redis:6379
@@ -69,10 +69,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        - VITE_API_BASE_URL=http://localhost:8000
     ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000
+      - "5173:80"
     depends_on:
       - backend
     restart: unless-stopped

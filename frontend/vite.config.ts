@@ -5,10 +5,15 @@ import { defineConfig } from "vite";
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: "./",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ["react", "react-dom", "prop-types"],
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "prop-types"],
   },
 });

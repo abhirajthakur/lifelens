@@ -10,9 +10,13 @@ from app.core import config
 from app.models.media import FileType
 from app.services import ml_services
 
-celery_app = Celery(
-    "media_tasks", broker="redis://localhost:6379", backend="redis://localhost:6379"
-)
+from dotenv import load_dotenv
+
+load_dotenv()
+
+REDIS_URL = config.REDIS_URL
+
+celery_app = Celery("media_tasks", broker=REDIS_URL, backend=REDIS_URL)
 
 
 celery_app.conf.update(

@@ -1,13 +1,13 @@
+import os
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
 # from app.models import Base
 from app.core.db import Base
-from app.models import media, user, chat
+from app.models import chat, media, user
 
 # Import all models so that Alembic sees them
 # (important for autogenerate to detect tables)
@@ -22,7 +22,11 @@ if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
 
-# config.set_main_option("sqlalchemy.url", DATABASE_URL)
+DATABASE_URL = os.getenv(
+    "DATABASE_URL", "postgresql://postgres:mysecretpassword@db:5432/lifelens_db"
+)
+
+config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 # add your model's MetaData object here
 # for 'autogenerate' support
