@@ -44,6 +44,7 @@ LifeLens is an intelligent media management platform that uses advanced AI to he
 - **Framework**: React 19 with TypeScript
 - **State Management**: Zustand for global state, TanStack Query for server state
 - **Styling**: Tailwind CSS
+- **Production Serving**: nginx with optimized static file serving and SPA routing
 
 ### **Backend** (FastAPI + Python)
 
@@ -53,16 +54,25 @@ LifeLens is an intelligent media management platform that uses advanced AI to he
 - **Authentication**: JWT-based auth with bcrypt password hashing
 - **Background Tasks**: Celery with Redis for async media processing
 - **ORM**: SQLAlchemy 2.0 with Alembic migrations
+- **Configuration**: Environment-based database URL and settings
+
+### **Containerization** (Docker + Docker Compose)
+
+- **Multi-service orchestration**: PostgreSQL, Redis, Backend API, Celery Worker, Frontend
+- **Production-ready**: nginx for frontend, health checks, persistent volumes
+- **Environment-driven**: Database connections and API keys via environment variables
 
 ## 🚀 Quick Start
 
 ### Option 1: Docker Compose (Recommended)
 
 #### Prerequisites
+
 - **Docker** and **Docker Compose**
 - **Google Gemini API Key**
 
 #### Setup
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/abhirajthakur/lifelens.git
@@ -81,10 +91,17 @@ docker-compose up -d
 docker-compose exec backend uv run alembic upgrade head
 
 # 5. Access the application
-# - Frontend: http://localhost:5173
-# - Backend API: http://localhost:8000
-# - API Documentation: http://localhost:8000/docs
+- Frontend: http://localhost:5173 (served by nginx)
 ```
+
+#### What's Included
+
+- **PostgreSQL** with pgvector extension for vector storage
+- **Redis** for background task processing
+- **Backend API** (FastAPI) with automatic database migrations
+- **Celery Worker** for async media processing
+- **Frontend** (React) served by nginx for production-ready performance
+- **Environment-based configuration** for easy deployment
 
 ### Option 2: Manual Setup
 
@@ -121,10 +138,16 @@ cp .env.example .env
 # - JWT_SECRET_KEY=your_secret_key
 # - FRONTEND_URL=http://localhost:5173
 
-# Start PostgreSQL with pgvector
-docker-compose up -d
+# Start PostgreSQL with pgvector and Redis
+docker run -d --name postgres-pgvector -p 5432:5432 \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password \
+  -e POSTGRES_DB=lifelens_db \
+  pgvector/pgvector:pg17
 
-# Run database migrations
+docker run -d --name redis -p 6379:6379 redis:7-alpine
+
+# Run database migrations (Alembic automatically uses DATABASE_URL from environment)
 alembic upgrade head
 
 # Start the backend server
@@ -188,32 +211,47 @@ npm run dev
 
 - **AI/ML**: Google Gemini 2.5 Flash, pgvector, embeddings
 - **Backend**: FastAPI, SQLAlchemy, Celery, Redis, PostgreSQL
-- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Radix UI
+- **Frontend**: React, TypeScript, Vite, Tailwind CSS, Radix UI, nginx
 - **Authentication**: JWT tokens with bcrypt hashing
 - **File Processing**: PIL (images), PyPDF2 (PDFs), python-docx (Word)
+- **Containerization**: Docker, Docker Compose with multi-service orchestration
+
+## 🐳 Docker Configuration
+
+### Container Architecture
+
+The Docker setup includes the following services:
+
+- **PostgreSQL** (`pgvector/pgvector:pg17`) - Database with vector extension on port 5432
+- **Redis** (`redis:7-alpine`) - Task queue backend on port 6379
+- **Backend** (FastAPI) - API server on port 8000 (mapped from container port 80)
+- **Celery Worker** - Background task processor for media analysis
+- **Frontend** (nginx) - React app served by nginx on port 5173 (mapped from container port 80)
 
 ### Environment Variables
 
 ```bash
-# Backend (.env)
+# Backend (.env) - Required for Docker Compose
 GEMINI_API_KEY=your_gemini_api_key
-DATABASE_URL=postgresql://postgres:password@localhost:5432/lifelens_db
 JWT_SECRET_KEY=your_jwt_secret_key
-REDIS_URL=redis://localhost:6379
-FRONTEND_URL=http://localhost:5173
 
-# Frontend (.env.local)
-VITE_API_BASE_URL=http://localhost:8000
+# The following are automatically configured in Docker Compose:
+# DATABASE_URL=postgresql://postgres:mysecretpassword@db:5432/lifelens_db
+# REDIS_URL=redis://redis:6379
+# FRONTEND_URL=http://localhost:5173
+
+# Frontend build-time variable (configured in docker-compose.yml)
+# VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ### Database Configuration
 
-The application uses PostgreSQL with the pgvector extension for vector similarity search. The database schema includes:
+The application uses PostgreSQL with the pgvector extension for vector similarity search. Database configuration is environment-driven:
 
-- **Users**: Authentication and user management
-- **Media**: File metadata and storage references
-- **MediaMetadata**: AI-generated content (captions, OCR, transcripts, embeddings)
-- **Conversations**: Chat history and context
+- **Docker**: Automatically configured via `DATABASE_URL` environment variable
+- **Alembic**: Reads `DATABASE_URL` from environment, falls back to default connection string
+- **Schema**: Includes Users, Media, MediaMetadata, and Conversations tables
+- **Migrations**: Run automatically with `docker-compose exec backend uv run alembic upgrade head`
 
 ## 🌐 API Reference
 
