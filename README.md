@@ -37,6 +37,12 @@ LifeLens is an intelligent media management platform that uses advanced AI to he
 - **Content Analysis**: Extract names, dates, addresses, and other structured data
 - **File Type Filtering**: Filter by images, PDFs, documents, or audio files
 
+## 🖼️ Screenshots
+<img width="1919" height="1079" alt="Screenshot 2025-10-25 204836" src="https://github.com/user-attachments/assets/e6f2c663-b134-45ec-b9ac-74c17b2f3f5e" />
+<img width="1919" height="1079" alt="Screenshot 2025-10-25 204638" src="https://github.com/user-attachments/assets/e9049296-e2e0-4e22-8cf7-5be697bf3688" />
+<img width="1919" height="1079" alt="Screenshot 2025-10-25 204633" src="https://github.com/user-attachments/assets/a5238b07-3772-4309-9c4b-b7a72ea3fff1" />
+
+
 ## 🏗️ Architecture
 
 ### **Frontend** (React + TypeScript)
